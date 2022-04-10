@@ -12,7 +12,7 @@ class ZeroMeanTransform:
     def __call__(self, img):
         x = np.array(img, dtype=np.float32)
         mean = np.mean(img)
-        return Image.fromarray(x - mean)
+        return Image.fromarray((x - mean))
 
 class UnitLenTransform:
     def __call__(self, img):
@@ -39,8 +39,8 @@ def run1_transforms(resize=16, crop=240):
                                transforms.Resize(255),
                                transforms.CenterCrop(crop),
                                transforms.Resize(resize),
-                               #ZeroMeanTransform(),
-                               #UnitLenTransform(),
+                               ZeroMeanTransform(),
+                               UnitLenTransform(),
                                transforms.ToTensor(),
                                transforms.Lambda(lambda x: flatten(x))])
 
