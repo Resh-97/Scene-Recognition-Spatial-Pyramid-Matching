@@ -1,27 +1,44 @@
 import os
 import shutil
 import numpy as np
-from PIL import Image
-import cv2
-from torch.utils.data import DataLoader
-from torch import flatten
-from torchvision import datasets, transforms
+from torchvision import datasets
+from sklearn.metrics import make_scorer, precision_score
 
+# Decorator turns into scorer object to be used with 
+# grid search.
+@make_scorer
+def avg_precision(y_true, y_pred):
+    """
+    Average precision metric.
+    Computes precision for each class independently
+    then take average.
 
-class ZeroMeanTransform:
-    def __call__(self, img):
-        x = np.array(img, dtype=np.float32)
-        mean = np.mean(img)
-        return Image.fromarray((x - mean))
+    Args:
+        y_true (numpy.array): array of true y values. 
+        y_pred(numpy.array): array of predicted y values.
 
-class UnitLenTransform:
-    def __call__(self, img):
-        x = np.array(img)
-        cv2.normalize(x, x, alpha=1, dtype=cv2.CV_32F)
-        return Image.fromarray(x)
+    Returns:
+        (float) average precision.
+    
+    """
+    precision=[]
+    for idx, label in enumerate(np.unique(y_true)):
+        precision.append(precision_score(y_true == label, y_pred == label))
+    return np.mean(precision)
 
 
 def create_dataset(dir, transform=None, labeled=True):
+    """
+    Read in data and apply transformation.
+
+    Args:
+        dir (string): path to data folder
+        transform (torchvision.Transform): transform to apply to data.
+        labeled (bool): if data is not contained within subfolders indicating
+            labels then create dummy folder and move data.
+    Returns:
+        (torch.Dataset) transformed data.
+    """
     if not labeled:
         # get file names in folder
         file_names = os.listdir(dir)
@@ -33,31 +50,3 @@ def create_dataset(dir, transform=None, labeled=True):
 
     dataset = datasets.ImageFolder(dir, transform)
     return dataset
-
-def run1_transforms(resize=16, crop=240):
-    return transforms.Compose([transforms.Grayscale(num_output_channels=1),
-                               transforms.Resize(255),
-                               transforms.CenterCrop(crop),
-                               transforms.Resize(resize),
-                               ZeroMeanTransform(),
-                               UnitLenTransform(),
-                               transforms.ToTensor(),
-                               transforms.Lambda(lambda x: flatten(x))])
-
-
-
-if __name__ == "__main__":
-    transform = transforms.Compose([transforms.Grayscale(num_output_channels=1),
-                                 transforms.Resize(255),
-                                 transforms.CenterCrop(120),
-                                 transforms.Resize(16),
-                                 ZeroMeanTransform(),
-                                 UnitLenTransform(),
-                                 transforms.Lambda(lambda x: flatten(x)),
-                                 transforms.ToTensor()])
-
-    #data = BaseDataset('./testing/')
-    #dataset = datasets.ImageFolder('./training/', transform)
-    dataset = create_dataset("./testing/", transform, labeled=True)
-    dataloader = DataLoader(dataset, batch_size=1, shuffle=True)
-    print(next(iter(dataloader)))
