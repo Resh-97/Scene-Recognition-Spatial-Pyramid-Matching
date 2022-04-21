@@ -10,21 +10,6 @@ class Classifier:
     def train(self, X, y):
         self.clf.fit(X, y)
 
-    def tune(self, X, y):
-        raise NotImplementedError
-
-    def predict(self, X):
-        return self.clf.predict(X)
-
-
-
-class KNearestNeighbors(Classifier):
-    def __init__(self, **kwargs) -> None:
-        # define classifier
-        clf = KNeighborsClassifier(**kwargs)
-        # init superclass
-        super().__init__(clf)
-
     def tune(self, X, y, param_grid):
         """
         Runs grid search over a parameter grid for 
@@ -54,6 +39,20 @@ class KNearestNeighbors(Classifier):
         # change classifier to best estimator
         self.clf = best_estimator
         return best_score, best_params
+
+    def predict(self, X):
+        return self.clf.predict(X)
+
+
+
+class KNearestNeighbors(Classifier):
+    def __init__(self, **kwargs) -> None:
+        # define classifier
+        clf = KNeighborsClassifier(**kwargs)
+        # init superclass
+        super().__init__(clf)
+
+
 
         
 

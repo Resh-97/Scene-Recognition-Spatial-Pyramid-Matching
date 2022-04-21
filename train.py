@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
-from utils import create_dataset
+from utils import create_dataset, show_misclassified, get_percent_misclassified
 from features import run1_transforms
 from classifiers import KNearestNeighbors
 
@@ -14,18 +14,37 @@ from classifiers import KNearestNeighbors
 
 
 if __name__ == "__main__":
+    seed=10
     # set random seed
-    np.random.seed(10)
+    np.random.seed(seed)
+    # dictionary to record run statistics
+    stats = {}
+    stats['seed'] = seed
+    # labels (used to illustrate incorrectly classified images)
+    class_labels=["bedroom", "Coast", "Forest", "Highway", "industrial", 
+    "Insidecity", "kitchen", "livingroom", "Mountain", "Office", "OpenCountry", "store", 
+    "Street", "Suburb", "TallBuilding"]
     ##----------------------------------- READ DATASETS ----------------------------------------##
-    transform = run1_transforms(crop=200)
+    feature_name = 'tiny_image'
+    feature_hparams = {'crop':200}
+
+    transform = run1_transforms(**feature_hparams)
     dataset = create_dataset("./training/", transform, labeled=True)
     dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
 
-    # load labeled data 
-    X = next(iter(dataloader))[0].numpy()
-    y = next(iter(dataloader))[1].numpy()
+    # add feature to stats
+    stats['feature'] = {'name':feature_name, 'hparams': feature_hparams}
 
-    print(X.shape)
+    # load labeled data 
+    X, y, paths, path_class_idxs = next(iter(dataloader))
+    X=X.numpy()
+    y=y.numpy()
+    #X = next(iter(dataloader))[0].numpy()
+    #y = next(iter(dataloader))[1].numpy()
+    #paths = next(iter(dataloader))[2]
+    #path_class_idxs = next(iter(dataloader))[3]
+    #print(path_class_idxs)
+
     # load in test data
     #test_dataset = create_dataset("./testing/", transform, labeled=True)
     #test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
@@ -37,21 +56,22 @@ if __name__ == "__main__":
 
     ##------------------------------------ SPLIT DATASETS ---------------------------------------##
     # let's split up the labeled training data into validation and testing
-    X_train, X_val, y_train, y_val = train_test_split(X, y,test_size=0.2, stratify=y)
+    X_train, X_val, y_train, y_val, paths_train, paths_val = train_test_split(X,y, paths, test_size=0.2, stratify=y)
     print(np.unique(y_train, return_counts=True))
     print(np.unique(y_val, return_counts=True))
     ##-------------------------------------------------------------------------------------------##
 
     ##------------------------------------- TUNE CLASSIFIER -------------------------------------##
     #params = config['params'] # READ FROM CONFIG FILE
+    classifier_name = 'KNN'
+    classifier_hparams = {'n_neighbors':2, 'n_jobs':-1}
     # params for instantiating classifier
-    params = {'n_neighbors':2, 'n_jobs':-1}
     # parameter grid to search over when tuning classifier
     param_grid = {
         'n_neighbors':[i for i in range(1, 25)],
         'n_jobs':[-1]
     }
-    classifier = KNearestNeighbors(**params)
+    classifier = KNearestNeighbors(**classifier_hparams)
     best_score, best_params = classifier.tune(
         X_train,
         y_train, 
@@ -60,11 +80,22 @@ if __name__ == "__main__":
     print(f"Best parameters: {best_params}\n")
     print(f"Best score: {best_score}\n")
 
+    # add classifier to stats dictionary
+    stats['classifier'] = {'name':classifier_name, 'hparams':best_params}
+
+
     ##-------------------------------------------------------------------------------------------##
 
     ##-------------------------------------- WRITE PREDICTIONS ----------------------------------##
 
     #classifier.predict(X_test, output_file)
+    # evaluation
+    class_labels_to_idx = dataset.class_to_idx
+    preds = classifier.predict(X_val)
+    show_misclassified(preds, y_val, paths_val, class_labels_to_idx)
+    percent_misclassified = get_percent_misclassified(preds, y_val, class_labels_to_idx)
+    stats['percent_misclassified'] = percent_misclassified
+    print(stats)
 
     #plt.figure()
    # plt.plot(K_vals,  avg_prec)
