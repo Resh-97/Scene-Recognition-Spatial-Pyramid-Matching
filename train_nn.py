@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 from utils import create_dataset, show_misclassified, get_percent_misclassified, train_model
-from features import run1_transforms
+from features import run3_transforms
 from classifiers import KNearestNeighbors
 from torchvision.models import resnet18
 from torch import nn, optim, from_numpy
@@ -25,10 +25,10 @@ if __name__ == "__main__":
     "Insidecity", "kitchen", "livingroom", "Mountain", "Office", "OpenCountry", "store", 
     "Street", "Suburb", "TallBuilding"]
     ##----------------------------------- READ DATASETS ----------------------------------------##
-    feature_name = 'tiny_image'
+    feature_name = 'no_features'
     feature_hparams = {'crop':200}
 
-    transform = run1_transforms(**feature_hparams)
+    transform = run3_transforms(**feature_hparams)
     dataset = create_dataset("./training/", transform, labeled=True)
     dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
 
@@ -58,30 +58,38 @@ if __name__ == "__main__":
     print(np.unique(y_val, return_counts=True))
     ##-------------------------------------------------------------------------------------------##
 
-    ##------------------------------------- TUNE CLASSIFIER -------------------------------------##
-    #params = config['params'] # READ FROM CONFIG FILE
-    classifier_name = 'KNN'
-    classifier_hparams = {'n_neighbors':2, 'n_jobs':-1}
-    # params for instantiating classifier
-    # parameter grid to search over when tuning classifier
-    param_grid = {
-        'n_neighbors':[i for i in range(1, 25)],
-        'n_jobs':[-1]
+
+    #----------------------------------- Deep Learning ---------------------------------#
+    data = {
+        "train": [from_numpy(X_train).unsqueeze(0), from_numpy(y_train).unsqueeze(0)],
+        "val": [from_numpy(X_val).unsqueeze(0), from_numpy(y_val).unsqueeze(0)]
     }
-    classifier = KNearestNeighbors(**classifier_hparams)
-    best_score, best_params = classifier.tune(
-        X_train,
-        y_train, 
-        param_grid=param_grid
-        ) # tunes classifier and writes to metrics file
-    print(f"Best parameters: {best_params}\n")
-    print(f"Best score: {best_score}\n")
+    model_conv = resnet18(pretrained=True)
+    for param in model_conv.parameters():
+        param.requires_grad = False
 
-    # add classifier to stats dictionary
-    stats['classifier'] = {'name':classifier_name, 'hparams':best_params}
+    # Parameters of newly constructed modules have requires_grad=True by default
+    num_ftrs = model_conv.fc.in_features
+    model_conv.fc = nn.Linear(num_ftrs, 15)
 
+    model_conv = model_conv.to('cpu')
 
-    ##-------------------------------------------------------------------------------------------##
+    criterion = nn.CrossEntropyLoss()
+
+    # Observe that only parameters of final layer are being optimized as
+    # opposed to before.
+    optimizer_conv = optim.SGD(model_conv.fc.parameters(), lr=0.001, momentum=0.9)
+
+    # Decay LR by a factor of 0.1 every 7 epochs
+    exp_lr_scheduler = optim.lr_scheduler.StepLR(optimizer_conv, step_size=7, gamma=0.1)
+
+    finetuned_model = train_model(model_conv, 
+                                data,
+                                criterion, 
+                                optimizer_conv, 
+                                exp_lr_scheduler, 
+                                num_epochs=25)
+    #----------------------------END Deep Learning ---------------------------------------#
 
 
 
@@ -90,7 +98,8 @@ if __name__ == "__main__":
     #classifier.predict(X_test, output_file)
     # evaluation
     class_labels_to_idx = dataset.class_to_idx
-    preds = classifier.predict(X_val)  
+    preds = finetuned_model(from_numpy(X_val)).numpy()
+    #preds = classifier.predict(X_val)  UNCOMMENT WHEN DEEP LEARNING DONE
     show_misclassified(preds, y_val, paths_val, class_labels_to_idx)
     percent_misclassified = get_percent_misclassified(preds, y_val, class_labels_to_idx)
     stats['percent_misclassified'] = percent_misclassified
