@@ -1,9 +1,11 @@
 import os
 import shutil
 import numpy as np
+import pandas as pd
 from torchvision import datasets
 from scipy.cluster.vq import kmeans, vq
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report
 
 
 class ImageFolderWithPaths(datasets.ImageFolder):
@@ -52,6 +54,26 @@ def imglist(path):
     return [os.path.join(path, f) for f in os.listdir(path)]
 
 
+def write_preds_to_file(file_name, image_paths, class_labels, class_to_label_dict):
+    with open(file_name +'.txt', 'w') as file:
+        for idx in range(len(image_paths)):
+            path = image_paths[idx].split("\\")[1]
+            line = str(path) + " " + list(class_to_label_dict.keys())[list(class_to_label_dict.values()).index(class_labels[idx])]
+            file.write(line)
+            file.write('\n')
+    file.close()
+    
+    
+def write_classification_report_to_file(file_name, true_classes, predicted_classes, target_names):
+    report = classification_report(true_classes, predicted_classes, target_names=target_names, output_dict=True)
+    df_report = pd.DataFrame(report).T
+    df_report = df_report.round(2)
+    report_latex = df_report.to_latex(caption='Run#2 classification report.', label='tab::run2report')
+    with open(file_name +'.txt', 'w') as file:
+        file.write(report_latex)
+    file.close()
+
+
 class CodeBook():
     def __init__(self, code_book_size):
         self.feature_scaler = StandardScaler()
@@ -60,11 +82,8 @@ class CodeBook():
         
     def stack_descriptors(self, descriptors):
         descriptors = descriptors[1]
-
         for descriptor in descriptors[1:]:
             descriptors = np.vstack((descriptors, descriptor))
-
-        print("Descriptors stacked successfully!")
         return descriptors.astype(float)  
         
     def create_code_book(self, descriptors):

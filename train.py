@@ -2,14 +2,10 @@ import numpy as np
 import os
 
 from classifiers import LogisticRegressionWrapper as LogisticRegression
-from utils import imglist, create_dataset, CodeBook
+from sklearn.model_selection import train_test_split
+from utils import CodeBook, imglist, create_dataset, write_preds_to_file, write_classification_report_to_file
 from features import run2_transforms
 from torch.utils.data import DataLoader
-
-
-# example arg "train.py --metrics=run1" -> metrics_file = "run1_metrics.txt"
-#metrics_file = args.run + '_metrics.txt'
-#output_file = 'run' + args.run + '.txt'
 
 
 if __name__ == "__main__":
@@ -26,34 +22,52 @@ if __name__ == "__main__":
     X = X.numpy()
     y = y.numpy()
     
-##----------------------------------- BATCH FEATURE TRANSFORMS ----------------------------------------##
+    X_train, X_val, y_train, y_val, paths_train, paths_val = train_test_split(X, y, paths, test_size=0.2, stratify=y)
+        
+    ##----------------------------------- BATCH FEATURE TRANSFORMS ----------------------------------------##
     size_of_code_book = 600
     codebook = CodeBook(size_of_code_book)
     codebook.create_code_book(X)
-    quantised_features = codebook.get_quantised_image_features(X)
+    quantised_train_features = codebook.get_quantised_image_features(X_train)
+    quantised_val_features = codebook.get_quantised_image_features(X_val)
     
     print("Quantisation done..")
     
-##----------------------------------- MODEL FITTING ----------------------------------------##
+    ##------------------------------------------- MODEL FITTING -------------------------------------------##
     
     clf = LogisticRegression(multi_class='ovr', max_iter=100)
-    clf.train(quantised_features, y)
+    clf.train(quantised_train_features, y_train)
     
-    print(clf.score(quantised_features, y))
+    print("Model fitting done..")
+        
+    ##----------------------------------- VALIDATION DATASET SCORE ----------------------------------------##
+    print("Validation performance score: " + str(clf.score(quantised_val_features, y_val)))
+    y_preds_val = clf.predict(quantised_val_features)
     
-##----------------------------------- TODO: VALIDATION ----------------------------------------##
+    ##-------------------------------- WRITE CLASSIFICATION REPORT TO FILE --------------------------------## 
+    class_to_label_dict = dataset.class_to_idx        
     
-##----------------------------------- TEST: READ DATASETS ----------------------------------------##
+    target_names = class_to_label_dict.keys()
+    file_name = "run2_val_report"
+    write_classification_report_to_file(file_name, y_preds_val, y_val, target_names)
+    
+    print("Validation report saved to file: " + str(file_name) + ".txt")
+    
+    ##-------------------------------------------- TEST RUN -----------------------------------------------##
     
     dataset = create_dataset("./testing/", transform, labeled=False)
     dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
     
-    X_test, _, _, _ = next(iter(dataloader))
+    X_test, y, paths_test, _ = next(iter(dataloader))
     X_test = X_test.numpy()
     
     quantised_test_features = codebook.get_quantised_image_features(X_test)
-    
     y_preds = clf.predict(quantised_test_features)
-    print(y_preds[:10])
     
-##----------------------------------- TODO: WRITE TO FILE ----------------------------------------##
+    print("Test run complete..")
+        
+    ##----------------------------------- WRITE PREDICTIONS TO FILE ----------------------------------------##
+
+    file_name = 'run2'
+    write_preds_to_file(file_name, paths_test, y_preds, class_to_label_dict)
+    print("Predictions written to file " + file_name + ".txt")
