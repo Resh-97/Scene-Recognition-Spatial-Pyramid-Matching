@@ -21,13 +21,14 @@ if __name__ == "__main__":
     X, y, paths, path_class_idxs = next(iter(dataloader))
     X = X.numpy()
     y = y.numpy()
-    
+        
     X_train, X_val, y_train, y_val, paths_train, paths_val = train_test_split(X, y, paths, test_size=0.2, stratify=y)
+    
         
     ##----------------------------------- BATCH FEATURE TRANSFORMS ----------------------------------------##
     size_of_code_book = 600
     codebook = CodeBook(size_of_code_book)
-    codebook.create_code_book(X)
+    codebook.create_code_book(X_train)
     quantised_train_features = codebook.get_quantised_image_features(X_train)
     quantised_val_features = codebook.get_quantised_image_features(X_val)
     
@@ -58,7 +59,7 @@ if __name__ == "__main__":
     dataset = create_dataset("./testing/", transform, labeled=False)
     dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
     
-    X_test, y, paths_test, _ = next(iter(dataloader))
+    X_test, _, paths_test, _ = next(iter(dataloader))
     X_test = X_test.numpy()
     
     quantised_test_features = codebook.get_quantised_image_features(X_test)

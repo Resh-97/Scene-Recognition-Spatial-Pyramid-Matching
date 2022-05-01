@@ -1,0 +1,29 @@
+\begin{table}
+\centering
+\caption{Run#2 classification report.}
+\label{tab::run2report}
+\begin{tabular}{lrrrr}
+\toprule
+{} &  precision &  recall &  f1-score &  support \\
+\midrule
+Coast        &       0.75 &    0.58 &      0.65 &    26.00 \\
+Forest       &       0.85 &    0.71 &      0.77 &    24.00 \\
+Highway      &       0.75 &    0.68 &      0.71 &    22.00 \\
+Insidecity   &       0.70 &    0.56 &      0.62 &    25.00 \\
+Mountain     &       0.65 &    0.87 &      0.74 &    15.00 \\
+Office       &       0.80 &    0.73 &      0.76 &    22.00 \\
+OpenCountry  &       0.45 &    0.60 &      0.51 &    15.00 \\
+Street       &       0.80 &    0.70 &      0.74 &    23.00 \\
+Suburb       &       0.75 &    0.88 &      0.81 &    17.00 \\
+TallBuilding &       0.65 &    0.81 &      0.72 &    16.00 \\
+bedroom      &       0.35 &    0.58 &      0.44 &    12.00 \\
+industrial   &       0.30 &    0.43 &      0.35 &    14.00 \\
+kitchen      &       0.45 &    0.36 &      0.40 &    25.00 \\
+livingroom   &       0.35 &    0.27 &      0.30 &    26.00 \\
+store        &       0.55 &    0.61 &      0.58 &    18.00 \\
+accuracy     &       0.61 &    0.61 &      0.61 &     0.61 \\
+macro avg    &       0.61 &    0.62 &      0.61 &   300.00 \\
+weighted avg &       0.63 &    0.61 &      0.61 &   300.00 \\
+\bottomrule
+\end{tabular}
+\end{table}

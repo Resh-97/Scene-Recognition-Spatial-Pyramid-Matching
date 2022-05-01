@@ -77,20 +77,20 @@ def write_classification_report_to_file(file_name, true_classes, predicted_class
 class CodeBook():
     def __init__(self, code_book_size):
         self.feature_scaler = StandardScaler()
-        self.sample_size = 5000       # for code book generation
+        self.sample_size = 500000       # for code book generation
         self.code_book_size = code_book_size
         
     def stack_descriptors(self, descriptors):
-        descriptors = descriptors[1]
+        descriptor_stack = descriptors[0][:]
         for descriptor in descriptors[1:]:
-            descriptors = np.vstack((descriptors, descriptor))
-        return descriptors.astype(float)  
+            descriptor_stack = np.vstack((descriptor_stack, descriptor))
+        return descriptor_stack.astype(float)  
         
     def create_code_book(self, descriptors):
         stacked_descriptors = self.stack_descriptors(descriptors)
         normalised_descriptors = self.feature_scaler.fit_transform(stacked_descriptors)
         samples = normalised_descriptors[np.random.choice(normalised_descriptors.shape[0], self.sample_size, replace=False), :]
-        self.code_book, variance = kmeans(samples, self.code_book_size, 1)
+        self.code_book, _ = kmeans(samples, self.code_book_size, 1)
     
     def get_quantised_image_features(self, descriptors):
         im_features = np.zeros((len(descriptors), self.code_book_size), "float32")
