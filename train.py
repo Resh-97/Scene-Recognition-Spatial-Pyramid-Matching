@@ -26,9 +26,10 @@ if __name__ == "__main__":
     
         
     ##----------------------------------- BATCH FEATURE TRANSFORMS ----------------------------------------##
-    size_of_code_book = 600
-    codebook = CodeBook(size_of_code_book)
-    codebook.create_code_book(X_train)
+    tune_code_book_size = True
+    code_book_cluster_num_candidates = [50, 200, 400, 500, 550, 600, 650]
+    codebook = CodeBook()
+    codebook.create_code_book(X_train, tune_code_book_size, code_book_cluster_num_candidates)
     quantised_train_features = codebook.get_quantised_image_features(X_train)
     quantised_val_features = codebook.get_quantised_image_features(X_val)
     

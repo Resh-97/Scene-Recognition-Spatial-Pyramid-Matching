@@ -4,9 +4,11 @@ import numpy as np
 import pandas as pd
 from torchvision import datasets
 from scipy.cluster.vq import kmeans, vq
+from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 
+import matplotlib.pyplot as plt
 
 class ImageFolderWithPaths(datasets.ImageFolder):
     """Custom dataset that includes image file paths. Extends
@@ -75,10 +77,12 @@ def write_classification_report_to_file(file_name, true_classes, predicted_class
 
 
 class CodeBook():
-    def __init__(self, code_book_size):
+    def __init__(self, should_tune_code_book_size=False):
         self.feature_scaler = StandardScaler()
         self.sample_size = 500000       # for code book generation
-        self.code_book_size = code_book_size
+        self.code_book_size = 600
+        self.should_tune_code_book_size = should_tune_code_book_size
+        
         
     def stack_descriptors(self, descriptors):
         descriptor_stack = descriptors[0][:]
@@ -86,11 +90,20 @@ class CodeBook():
             descriptor_stack = np.vstack((descriptor_stack, descriptor))
         return descriptor_stack.astype(float)  
         
-    def create_code_book(self, descriptors):
+        
+    def create_code_book(self, descriptors, should_tune_code_book_size, code_book_cluster_num_candidates):
+        self.should_tune_code_book_size = should_tune_code_book_size
         stacked_descriptors = self.stack_descriptors(descriptors)
         normalised_descriptors = self.feature_scaler.fit_transform(stacked_descriptors)
         samples = normalised_descriptors[np.random.choice(normalised_descriptors.shape[0], self.sample_size, replace=False), :]
+        
+        # Choose cluster num for code book
+        if (self.should_tune_code_book_size):
+            samples_for_codebook = normalised_descriptors[np.random.choice(normalised_descriptors.shape[0], 10000, replace=False), :]
+            self.code_book_size = self.tune_k(samples_for_codebook, code_book_cluster_num_candidates)
+            
         self.code_book, _ = kmeans(samples, self.code_book_size, 1)
+    
     
     def get_quantised_image_features(self, descriptors):
         im_features = np.zeros((len(descriptors), self.code_book_size), "float32")
@@ -102,3 +115,19 @@ class CodeBook():
                 im_features[i][code] += 1
 
         return im_features
+    
+    
+    def tune_k(self, samples_for_codebook, candidate_values):
+        weighted_ssd = {}
+
+        for k in candidate_values:
+            kmeans = KMeans(n_clusters=k, max_iter=100).fit(samples_for_codebook)
+            weighted_ssd[k] = kmeans.inertia_/samples_for_codebook.shape[0]
+
+        plt.figure()
+        plt.plot(list(weighted_ssd.keys()), list(weighted_ssd.values()))
+        plt.xlabel("Number of clusters")
+        plt.ylabel("Avg weighted sum of squared distance")
+        plt.savefig('clustering.jpg')
+
+        return min(weighted_ssd, key=weighted_ssd.get)
