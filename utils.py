@@ -52,39 +52,34 @@ def imglist(path):
     return [os.path.join(path, f) for f in os.listdir(path)]
 
 
-def stack_descriptors(descriptors):
-    descriptors = descriptors[1]
+class CodeBook():
+    def __init__(self, code_book_size):
+        self.feature_scaler = StandardScaler()
+        self.sample_size = 5000       # for code book generation
+        self.code_book_size = code_book_size
+        
+    def stack_descriptors(self, descriptors):
+        descriptors = descriptors[1]
+
+        for descriptor in descriptors[1:]:
+            descriptors = np.vstack((descriptors, descriptor))
+
+        print("Descriptors stacked successfully!")
+        return descriptors.astype(float)  
+        
+    def create_code_book(self, descriptors):
+        stacked_descriptors = self.stack_descriptors(descriptors)
+        normalised_descriptors = self.feature_scaler.fit_transform(stacked_descriptors)
+        samples = normalised_descriptors[np.random.choice(normalised_descriptors.shape[0], self.sample_size, replace=False), :]
+        self.code_book, variance = kmeans(samples, self.code_book_size, 1)
     
-    for descriptor in descriptors[1:]:
-        descriptors = np.vstack((descriptors, descriptor))
+    def get_quantised_image_features(self, descriptors):
+        im_features = np.zeros((len(descriptors), self.code_book_size), "float32")
 
-    print("Descriptors stacked successfully!")
-    return descriptors.astype(float)
+        for i in range(len(descriptors)):
+            transformed_descriptor = self.feature_scaler.transform(descriptors[i])
+            codes, distances = vq(transformed_descriptor, self.code_book)
+            for code in codes:
+                im_features[i][code] += 1
 
-
-def normalise_data(data):
-    scaler = StandardScaler()
-    normalised_descriptors = scaler.fit_transform(descriptors_float)
-    return normalised_descriptors, scaler
-
-def create_code_book(descriptors, code_book_size):
-    sample_size = 500000    # for code book generation
-    feature_scaler = StandardScaler()
-    
-    stacked_descriptors = stack_descriptors(descriptors)
-    normalised_descriptors = feature_scaler.fit_transform(stacked_descriptors)
-    samples = normalised_descriptors[np.random.choice(normalised_descriptors.shape[0], sample_size, replace=False), :]
-    code_book, variance = kmeans(samples, code_book_size, 1)
-    return code_book, feature_scaler
-
-
-def get_quantised_image_features(descriptors, code_book_size, code_book, feature_scaler):
-    im_features = np.zeros((len(descriptors), code_book_size), "float32")
-    
-    for i in range(len(descriptors)):
-        transformed_descriptor = feature_scaler.transform(descriptors[i])
-        codes, distances = vq(transformed_descriptor, code_book)
-        for code in codes:
-            im_features[i][code] += 1
-    
-    return im_features
+        return im_features

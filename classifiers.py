@@ -17,7 +17,7 @@ class Classifier:
 
 
 
-class LogisticRegression(Classifier):
+class LogisticRegressionWrapper(Classifier):
     def __init__(self, **kwargs):
         self.scaler = MinMaxScaler()
         clf = LogisticRegression(**kwargs)
@@ -28,7 +28,7 @@ class LogisticRegression(Classifier):
     
     def train(self, X, y):
         normalised_X = self.scaler.fit_transform(X)
-        self.clf.fit(X, y)
+        self.clf.fit(normalised_X, y)
         
     def predict(self, X):
         normalised_X = self.scaler.transform(X)
@@ -36,4 +36,4 @@ class LogisticRegression(Classifier):
     
     def score(self, X, y):
         normalised_X = self.scaler.transform(X)
-        return model.score(normalised_X, y)
+        return self.clf.score(normalised_X, y)

@@ -1,8 +1,8 @@
 import numpy as np
 import os
 
-from classifiers import LogisticRegression
-from utils import imglist, create_dataset
+from classifiers import LogisticRegressionWrapper as LogisticRegression
+from utils import imglist, create_dataset, CodeBook
 from features import run2_transforms
 from torch.utils.data import DataLoader
 
@@ -27,9 +27,12 @@ if __name__ == "__main__":
     y = y.numpy()
     
 ##----------------------------------- BATCH FEATURE TRANSFORMS ----------------------------------------##
-    size_of_code_book = 500
-    code_book, feature_scaler = create_code_book(X, size_of_code_book)
-    quantised_features = get_quantised_img_features(X, size_of_code_book, code_book, feature_scaler)
+    size_of_code_book = 600
+    codebook = CodeBook(size_of_code_book)
+    codebook.create_code_book(X)
+    quantised_features = codebook.get_quantised_image_features(X)
+    
+    print("Quantisation done..")
     
 ##----------------------------------- MODEL FITTING ----------------------------------------##
     
@@ -48,8 +51,9 @@ if __name__ == "__main__":
     X_test, _, _, _ = next(iter(dataloader))
     X_test = X_test.numpy()
     
-    quantised_test_features = get_quantised_img_features(X_test, size_of_code_book, code_book, feature_scaler)
+    quantised_test_features = codebook.get_quantised_image_features(X_test)
     
     y_preds = clf.predict(quantised_test_features)
+    print(y_preds[:10])
     
 ##----------------------------------- TODO: WRITE TO FILE ----------------------------------------##
