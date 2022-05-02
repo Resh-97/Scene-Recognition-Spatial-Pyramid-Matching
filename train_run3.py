@@ -1,12 +1,12 @@
-import json
-import joblib
 import numpy as np
 import matplotlib.pyplot as plt
+import json 
+import joblib
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
 from utils import create_dataset, show_misclassified, get_percent_misclassified, plot_cm
-from features import run1_transforms
-from classifiers import KNearestNeighbors
+from features import run3_SIFT_transforms, get_bovw
+from classifiers import SupportVectorClassifer
 
 # example arg "train.py --metrics=run1" -> metrics_file = "run1_metrics.txt"
 #metrics_file = args.run + '_metrics.txt'
@@ -20,15 +20,11 @@ if __name__ == "__main__":
     # dictionary to record run statistics
     stats = {}
     stats['seed'] = seed
-    # labels (used to illustrate incorrectly classified images)
-    class_labels=["bedroom", "Coast", "Forest", "Highway", "industrial", 
-    "Insidecity", "kitchen", "livingroom", "Mountain", "Office", "OpenCountry", "store", 
-    "Street", "Suburb", "TallBuilding"]
     ##----------------------------------- READ DATASETS ----------------------------------------##
-    feature_name = 'tiny_image'
-    feature_hparams = {'crop':200}
+    feature_name = 'dense_sift'
+    feature_hparams = {'step_size':1}
 
-    transform = run1_transforms(**feature_hparams)
+    transform = run3_SIFT_transforms(**feature_hparams)
     dataset = create_dataset("./training/", transform, labeled=True)
     dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
 
@@ -37,10 +33,13 @@ if __name__ == "__main__":
 
     # load labeled data 
     X, y, paths, path_class_idxs = next(iter(dataloader))
-    X=X.numpy().astype(np.float32)
-    y=y.numpy().astype(np.float32)
+    X=X.numpy()
+    y=y.numpy()
     
-
+    # bag of visual words
+    num_clusters=700
+    X = get_bovw(X, num_clusters=num_clusters)
+    stats['bovw'] = {'num_clusters':num_clusters}
     # load in test data
     #test_dataset = create_dataset("./testing/", transform, labeled=True)
     #test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
@@ -48,6 +47,14 @@ if __name__ == "__main__":
     # note that our y_test are UNLABELED
     #y_test = next(iter(test_dataloader))[1].numpy()
 
+
+    ##-------------------------------------------------------------------------------------------##
+
+    ##------------------------------------ SAVE BOVW DATASET ------------------------------------##
+    with open('X_bovw.npy', 'wb') as f:
+        np.save(f, X)
+    with open('labels.npy') as f:
+        np.save(f, y)
     ##-------------------------------------------------------------------------------------------##
 
     ##------------------------------------ SPLIT DATASETS ---------------------------------------##
@@ -57,17 +64,20 @@ if __name__ == "__main__":
     print(np.unique(y_val, return_counts=True))
     ##-------------------------------------------------------------------------------------------##
 
+
     ##------------------------------------- TUNE CLASSIFIER -------------------------------------##
     #params = config['params'] # READ FROM CONFIG FILE
-    classifier_name = 'KNN'
-    classifier_hparams = {'n_neighbors':2, 'n_jobs':-1}
+    classifier_name = 'SVC'
+    classifier_hparams = {'C':[1e-2, 1e-1, 1, 500, 1e2, 1e3]}
     # params for instantiating classifier
     # parameter grid to search over when tuning classifier
     param_grid = {
-        'n_neighbors':[i for i in range(1, 25)],
-        'n_jobs':[-1]
+        'C':[1e-2, 1e-1, 1, 50, 1e2, 500, 750, 1e3], 
+        'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
+        'gamma':['scale', 'auto'],
+        'random_state':seed
     }
-    classifier = KNearestNeighbors(**classifier_hparams)
+    classifier = SupportVectorClassifer(**classifier_hparams)
     best_score, best_params = classifier.tune(
         X_train,
         y_train, 
@@ -78,6 +88,8 @@ if __name__ == "__main__":
 
     # add classifier to stats dictionary
     stats['classifier'] = {'name':classifier_name, 'hparams':best_params}
+    stats['val_accuracy'] = classifier.clf.score(X_val, y_val)
+
 
 
     ##-------------------------------------------------------------------------------------------##
@@ -88,21 +100,21 @@ if __name__ == "__main__":
 
     #classifier.predict(X_test, output_file)
     # evaluation
-    stats['val_accuracy'] = classifier.clf.score(X_val, y_val)
     class_labels_to_idx = dataset.class_to_idx
     preds = classifier.predict(X_val)  
     show_misclassified(preds, y_val, paths_val, class_labels_to_idx)
-    # get confusion matrix
-    plot_cm(y_true=y_val, y_pred=preds, labels=dataset.classes)
-    plt.show()
     percent_misclassified = get_percent_misclassified(preds, y_val, class_labels_to_idx)
     stats['percent_misclassified'] = percent_misclassified
     print(stats)
-    with open('stats_run1.json', 'w', encoding='utf-8') as f:
+    # save stats
+    with open('stats.json', 'w', encoding='utf-8') as f:
         json.dump(stats, f, ensure_ascii=False, indent=4)
     # save classifier
     joblib.dump(classifier.clf, classifier_name+'.joblib')
 
+    # get confusion matrix
+    plot_cm(y_true=y_val, y_pred=preds, labels=dataset.classes)
+    plt.show()
     #plt.figure()
    # plt.plot(K_vals,  avg_prec)
     #plt.show()

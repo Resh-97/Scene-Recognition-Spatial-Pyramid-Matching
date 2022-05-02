@@ -4,6 +4,10 @@ import shutil
 import time
 import torch
 import numpy as np
+import seaborn as sns
+import pandas as pd
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 from PIL import Image
 from itertools import compress
 from torchvision import datasets
@@ -121,6 +125,9 @@ def test_paths(labels, paths, path_classes,  class_label_to_idx):
         if i>=10:
             break
 
+"""
+For training a PyTorch neural network.
+"""
 def train_model(model, 
                 data,
                 criterion, 
@@ -192,3 +199,30 @@ def train_model(model,
     # load best model weights
     model.load_state_dict(best_model_wts)
     return model
+
+"""
+Confusion matrix plot.
+"""
+def plot_cm(y_true, y_pred, labels, figsize=(10,10)):
+    cm = confusion_matrix(y_true, y_pred, labels=np.unique(y_true))
+    cm_sum = np.sum(cm, axis=1, keepdims=True)
+    cm_perc = cm / cm_sum.astype(float) * 100
+    annot = np.empty_like(cm).astype(str)
+    nrows, ncols = cm.shape
+    for i in range(nrows):
+        for j in range(ncols):
+            c = cm[i, j]
+            p = cm_perc[i, j]
+            if i == j:
+                s = cm_sum[i]
+                annot[i, j] = '%.1f%%\n%d/%d' % (p, c, s)
+            elif c == 0:
+                annot[i, j] = ''
+            else:
+                annot[i, j] = '%.1f%%\n%d' % (p, c)
+    col_labels = labels
+    cm = pd.DataFrame(cm, index=col_labels, columns=col_labels)
+    cm.index.name = 'Actual'
+    cm.columns.name = 'Predicted'
+    fig, ax = plt.subplots(figsize=figsize)
+    sns.heatmap(cm, cmap= "YlGnBu", annot=annot, fmt='', ax=ax)

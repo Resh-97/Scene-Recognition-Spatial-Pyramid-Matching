@@ -1,5 +1,7 @@
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import GridSearchCV
+from sklearn.svm import LinearSVC, SVC
+from skopt import BayesSearchCV
 from utils import avg_precision
 
 
@@ -43,8 +45,6 @@ class Classifier:
     def predict(self, X):
         return self.clf.predict(X)
 
-
-
 class KNearestNeighbors(Classifier):
     def __init__(self, **kwargs) -> None:
         # define classifier
@@ -52,8 +52,31 @@ class KNearestNeighbors(Classifier):
         # init superclass
         super().__init__(clf)
 
+class SupportVectorClassifer(Classifier):
+    def __init__(self, linear, **kwargs):
+        if linear:
+            clf = LinearSVC(**kwargs)
+        else:
+            clf = SVC(**kwargs)
+        super().__init__(clf)
 
 
+    def tune(self, X, y, param_grid):
+        """
+        Bayesian hyperparameter tuning.
+        """
+        search = BayesSearchCV(
+            self.clf,
+            param_grid,
+            scoring=avg_precision,
+            n_jobs=-1
+        ).fit(X, y)
+        best_params = search.cv_results_['params'][search.best_index_]
+        best_score = search.best_score_
+        best_estimator = search.best_estimator_
+        # change classifier to best estimator
+        self.clf = best_estimator
+        return best_score, best_params
         
 
 
