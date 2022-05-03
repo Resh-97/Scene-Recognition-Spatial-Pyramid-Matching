@@ -1,11 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
-from utils import create_dataset
-from features import run1_transforms
-from classifiers import KNearestNeighbors
-
+from utils import load_dataset, avg_accuracy
+from features import computeDenseSIFT, getDescriptors, clusterFeatures, getHistogramSPM, load_model
+#from classifiers import KNearestNeighbors, LinearSVC
+from sklearn.svm import LinearSVC
 
 
 # example arg "train.py --metrics=run1" -> metrics_file = "run1_metrics.txt"
@@ -17,48 +16,27 @@ if __name__ == "__main__":
     # set random seed
     np.random.seed(10)
     ##----------------------------------- READ DATASETS ----------------------------------------##
-    transform = run1_transforms(crop=200)
-    dataset = create_dataset("./training/", transform, labeled=True)
-    dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=True)
-
-    # load labeled data 
-    X = next(iter(dataloader))[0].numpy()
-    y = next(iter(dataloader))[1].numpy()
-
-    print(X.shape)
-    # load in test data
-    #test_dataset = create_dataset("./testing/", transform, labeled=True)
-    #test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
-    # X_test = next(iter(test_dataloader))[0].numpy()
-    # note that our y_test are UNLABELED
-    #y_test = next(iter(test_dataloader))[1].numpy()
-
-    ##-------------------------------------------------------------------------------------------##
+    train_data, train_label = load_dataset('./CVcoursework/images/training/')
 
     ##------------------------------------ SPLIT DATASETS ---------------------------------------##
     # let's split up the labeled training data into validation and testing
-    X_train, X_val, y_train, y_val = train_test_split(X, y,test_size=0.2, stratify=y)
-    print(np.unique(y_train, return_counts=True))
-    print(np.unique(y_val, return_counts=True))
-    ##-------------------------------------------------------------------------------------------##
+    trainX, valX, trainY, valY = train_test_split(train_data, train_label, train_size=0.8, random_state=42)
 
+    ##-------------------------------------Extract Features-----------------------------------------##
+    # Extract dense sift features from training images
+    x_train = computeDenseSIFT(data = trainX)
+    all_train_descriptors = getDescriptors(x_train)
+    kmeans = clusterFeatures(all_train_descriptors, k=500)
+    #kmeans = load_model('kmeansModel.sav')
+    train_hist = getHistogramSPM(2, trainX, kmeans, 500)
+    val_hist = getHistogramSPM(2, valX, kmeans, 500)
     ##------------------------------------- TUNE CLASSIFIER -------------------------------------##
-    #params = config['params'] # READ FROM CONFIG FILE
-    # params for instantiating classifier
-    params = {'n_neighbors':2, 'n_jobs':-1}
-    # parameter grid to search over when tuning classifier
-    param_grid = {
-        'n_neighbors':[i for i in range(1, 25)],
-        'n_jobs':[-1]
-    }
-    classifier = KNearestNeighbors(**params)
-    best_score, best_params = classifier.tune(
-        X_train,
-        y_train, 
-        param_grid=param_grid
-        ) # tunes classifier and writes to metrics file
-    print(f"Best parameters: {best_params}\n")
-    print(f"Best score: {best_score}\n")
+
+    for c in np.arange(0.000307, 0.001, 0.0000462):
+        clf = LinearSVC(random_state=0, C=c)
+        clf.fit(train_hist, trainY)
+        predict = clf.predict(val_hist)
+        print ("C =", c, ",\t\t Accuracy:", np.mean(predict == valY)*100, "%")
 
     ##-------------------------------------------------------------------------------------------##
 
