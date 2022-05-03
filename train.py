@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
-from utils import load_dataset, avg_accuracy, write_preds_to_file, write_classification_report_to_file
+from utils import load_dataset, avg_accuracy, write_preds_to_file, plot_cm
 from features import computeDenseSIFT, getDescriptors, clusterFeatures, getHistogramSPM, load_model
 #from classifiers import KNearestNeighbors, LinearSVC
 from classifiers import LogisticRegressionWrapper as LogisticRegression
@@ -47,8 +47,7 @@ if __name__ == "__main__":
     y_preds_val = clf.predict(val_hist)
     
     target_names = class_idx_to_label.keys()
-    file_name = "run3_val_report"
-    write_classification_report_to_file(file_name, y_preds_val, valY, target_names)
+    plot_cm(y_preds_val, valY, target_names)
 
     ##-------------------------------------------------------------------------------------------##
     X_test, _, paths_test, _ = load_dataset('./CVcoursework/images/testing/', train_set=False)

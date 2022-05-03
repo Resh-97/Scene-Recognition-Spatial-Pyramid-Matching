@@ -1,8 +1,12 @@
 import os
 import shutil
 import numpy as np
+import pandas as pd
 import glob
 import cv2
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
 from torchvision import datasets
 from sklearn.metrics import make_scorer, precision_score, classification_report
 
@@ -95,18 +99,35 @@ def load_dataset(dir, train_set=True):
 def write_preds_to_file(file_name, image_paths, class_labels, class_to_label_dict):
     with open(file_name +'.txt', 'w') as file:
         for idx in range(len(image_paths)):
-            path = image_paths[idx].split("\\")[3]
+            path = image_paths[idx]
             line = str(path) + " " + list(class_to_label_dict.keys())[list(class_to_label_dict.values()).index(class_labels[idx])]
             file.write(line)
             file.write('\n')
     file.close()
     
     
-def write_classification_report_to_file(file_name, true_classes, predicted_classes, target_names):
-    report = classification_report(true_classes, predicted_classes, target_names=target_names, output_dict=True)
-    df_report = pd.DataFrame(report).T
-    df_report = df_report.round(2)
-    report_latex = df_report.to_latex(caption='Run#2 classification report.', label='tab::run2report')
-    with open(file_name +'.txt', 'w') as file:
-        file.write(report_latex)
-    file.close()
+def plot_cm(y_true, y_pred, labels, figsize=(10,10)):
+    cm = confusion_matrix(y_true, y_pred, labels=np.unique(y_true))
+    cm_sum = np.sum(cm, axis=1, keepdims=True)
+    cm_perc = cm / cm_sum.astype(float) * 100
+    annot = np.empty_like(cm).astype(str)
+    nrows, ncols = cm.shape
+    for i in range(nrows):
+        for j in range(ncols):
+            c = cm[i, j]
+            p = cm_perc[i, j]
+            if i == j:
+                s = cm_sum[i]
+                annot[i, j] = '%.1f%%\n%d/%d' % (p, c, s)
+            elif c == 0:
+                annot[i, j] = ''
+            else:
+                annot[i, j] = '%.1f%%\n%d' % (p, c)
+    col_labels = labels
+    cm = pd.DataFrame(cm, index=col_labels, columns=col_labels)
+    cm.index.name = 'Actual'
+    cm.columns.name = 'Predicted'
+    fig, ax = plt.subplots(figsize=figsize)
+    hm = sns.heatmap(cm, cmap= "YlGnBu", annot=annot, fmt='', ax=ax)
+    figure = hm.get_figure()
+    figure.savefig("out.png") 

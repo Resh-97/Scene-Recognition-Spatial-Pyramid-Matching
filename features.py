@@ -23,7 +23,7 @@ def computeDenseSIFT(data=None,img=None):
         return x
     else:
         sift = cv2.SIFT_create()
-        step_size = step_size
+        step_size = 2
         keypoints = [cv2.KeyPoint(x, y, step_size)
             for y in range(0, img.shape[0], step_size)
                 for x in range(0, img.shape[1], step_size)]
