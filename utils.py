@@ -4,7 +4,7 @@ import numpy as np
 import glob
 import cv2
 from torchvision import datasets
-from sklearn.metrics import make_scorer, precision_score
+from sklearn.metrics import make_scorer, precision_score, classification_report
 
 # Decorator turns into scorer object to be used with
 # grid search.
@@ -56,7 +56,7 @@ def create_dataset(dir, transform=None, labeled=True):
     dataset = datasets.ImageFolder(dir, transform)
     return dataset
 
-def load_dataset(dir):
+def load_dataset(dir, train_set=True):
     """
     Read in data and apply transformation.
 
@@ -67,12 +67,46 @@ def load_dataset(dir):
     """
     data = []
     labels = []
+    paths = []
+    class_idx_to_label = {}
     classes = [name[31:] for name in glob.glob(dir + '/*')]
     classes = dict(zip(range(0,len(classes)), classes))
-    print (classes)
-    for id, class_name in classes.items():
-        img_path_class = glob.glob(dir + class_name + '/*.jpg')
-        labels.extend([id]*len(img_path_class))
+
+    if (train_set):
+        for id, class_name in classes.items():
+            class_idx_to_label[class_name] = id
+            img_path_class = glob.glob(dir + class_name + '/*.jpg')
+            labels.extend([id]*len(img_path_class))
+            for filename in img_path_class:
+                data.append(cv2.imread(filename, cv2.IMREAD_GRAYSCALE))
+    else:
+        img_path_class = glob.glob(dir + '/*.jpg')
         for filename in img_path_class:
             data.append(cv2.imread(filename, cv2.IMREAD_GRAYSCALE))
-    return data, labels
+    
+    test_path = dir
+    test_names = os.listdir(test_path)
+    for name in test_names:
+        path = os.path.join(test_path, name)
+        paths.append(path)
+        
+    return data, labels, paths, class_idx_to_label
+
+def write_preds_to_file(file_name, image_paths, class_labels, class_to_label_dict):
+    with open(file_name +'.txt', 'w') as file:
+        for idx in range(len(image_paths)):
+            path = image_paths[idx].split("\\")[3]
+            line = str(path) + " " + list(class_to_label_dict.keys())[list(class_to_label_dict.values()).index(class_labels[idx])]
+            file.write(line)
+            file.write('\n')
+    file.close()
+    
+    
+def write_classification_report_to_file(file_name, true_classes, predicted_classes, target_names):
+    report = classification_report(true_classes, predicted_classes, target_names=target_names, output_dict=True)
+    df_report = pd.DataFrame(report).T
+    df_report = df_report.round(2)
+    report_latex = df_report.to_latex(caption='Run#2 classification report.', label='tab::run2report')
+    with open(file_name +'.txt', 'w') as file:
+        file.write(report_latex)
+    file.close()

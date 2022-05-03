@@ -2,6 +2,9 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import GridSearchCV
 from utils import avg_precision, avg_accuracy
 from sklearn.svm import LinearSVC
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.linear_model import LogisticRegression
+
 
 
 class Classifier:
@@ -79,3 +82,25 @@ class LinearSVC(Classifier):
         # change classifier to best estimator
         self.clf = best_estimator
         return best_score, best_params
+    
+    
+class LogisticRegressionWrapper(Classifier):
+    def __init__(self, **kwargs):
+        self.scaler = MinMaxScaler()
+        clf = LogisticRegression(**kwargs)
+        super().__init__(clf)
+
+    def tune(self, *args):
+        pass
+
+    def train(self, X, y):
+        normalised_X = self.scaler.fit_transform(X)
+        self.clf.fit(normalised_X, y)
+
+    def predict(self, X):
+        normalised_X = self.scaler.transform(X)
+        return self.clf.predict(normalised_X)
+
+    def score(self, X, y):
+        normalised_X = self.scaler.transform(X)
+        return self.clf.score(normalised_X, y)
