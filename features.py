@@ -3,7 +3,7 @@ from PIL import Image
 import cv2
 from torch import flatten, from_numpy
 from torchvision import transforms
-from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 
 
 ##-------------------------------------- FEATURE EXTRACTION CLASSES -----------------------## 
@@ -57,6 +57,25 @@ class DenseSIFT:
         #img = Image.fromarray(img_array[0, 0, :])
 
         sift = cv2.SIFT_create()
+        # extract key points
+        kp = [cv2.KeyPoint(x, y, self.step_size) for y in range(0, img8bit.shape[2], self.step_size) 
+                                        for x in range(0, img8bit.shape[1], self.step_size)]
+        # extract dense features, NOTE: first dimension is batch size so drop
+        kp, descr = sift.compute(img8bit[0,:,:], kp)
+        return from_numpy(descr).unsqueeze(0) # add back batch size dimension
+
+
+class BOW_w_DenseSIFT:
+    def __init__(self, step_size, num_clusters):
+        self.step_size = step_size
+
+    def __call__(self, img_tensor):
+        img = img_tensor.numpy()
+        # convert image to an 8 bit it for input to SIFT
+        img8bit = cv2.normalize(img, None, 0, 255, cv2.NORM_MINMAX).astype('uint8')
+        #img = Image.fromarray(img_array[0, 0, :])
+
+        sift = cv2.SIFT_create()
         step_size = 5
         # extract key points
         kp = [cv2.KeyPoint(x, y, self.step_size) for y in range(0, img8bit.shape[2], step_size) 
@@ -73,7 +92,7 @@ class DenseSIFT:
 ##-------------------------------------- TRANSFORM FUNCTIONS -------------------------------##
 
 def get_bovw(data, num_clusters):
-    cluster_model = KMeans(n_clusters=num_clusters)
+    cluster_model = MiniBatchKMeans(n_clusters=num_clusters, max_iter=1000)
     print(data.shape)
     # first we need to stick all our images together into one big array
     stacked_descr = np.concatenate([img_array for img_array in data[:,0,:,:]])
@@ -86,6 +105,15 @@ def get_bovw(data, num_clusters):
     X = img_bow_hist / np.sum(img_bow_hist) # normalise to account for different image shapes
     return X
 
+
+def get_opencv_bow(data, num_clusters):
+    bow = cv2.BOWKMeansTrainer(num_clusters)
+    # input data of shape [NUM_IMAGES, BATCH_SIZE, NUM_DESCR, FEATURE_SIZE]
+    for i in range(data.shape[0]):
+        for j in range(data.shape[2]):
+            bow.add(data[i, 0, j, :])
+    dictionary = bow.cluster()
+        
 
 
 def run1_transforms(resize=16, crop=240):

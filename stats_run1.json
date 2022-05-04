@@ -10,25 +10,25 @@
         "name": "KNN",
         "hparams": {
             "n_jobs": -1,
-            "n_neighbors": 10
+            "n_neighbors": 8
         }
     },
-    "val_accuracy": 0.24333333333333335,
+    "val_accuracy": 0.19666666666666666,
     "percent_misclassified": {
-        "Coast": 0.55,
-        "Forest": 0.9,
-        "Highway": 0.15,
-        "Insidecity": 0.95,
-        "Mountain": 0.7,
-        "Office": 0.9,
+        "Coast": 0.4,
+        "Forest": 0.95,
+        "Highway": 0.2,
+        "Insidecity": 1.0,
+        "Mountain": 0.85,
+        "Office": 0.8,
         "OpenCountry": 0.7,
-        "Street": 0.4,
-        "Suburb": 0.5,
-        "TallBuilding": 0.85,
-        "bedroom": 1.0,
+        "Street": 0.55,
+        "Suburb": 0.85,
+        "TallBuilding": 0.8,
+        "bedroom": 0.95,
         "industrial": 1.0,
         "kitchen": 1.0,
-        "livingroom": 0.85,
-        "store": 0.9
+        "livingroom": 1.0,
+        "store": 1.0
     }
 }

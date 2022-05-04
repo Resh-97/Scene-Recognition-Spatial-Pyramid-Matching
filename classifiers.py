@@ -45,6 +45,7 @@ class Classifier:
     def predict(self, X):
         return self.clf.predict(X)
 
+
 class KNearestNeighbors(Classifier):
     def __init__(self, **kwargs) -> None:
         # define classifier
@@ -52,12 +53,10 @@ class KNearestNeighbors(Classifier):
         # init superclass
         super().__init__(clf)
 
+
 class SupportVectorClassifer(Classifier):
-    def __init__(self, linear, **kwargs):
-        if linear:
-            clf = LinearSVC(**kwargs)
-        else:
-            clf = SVC(**kwargs)
+    def __init__(self, **kwargs):
+        clf = SVC(**kwargs)
         super().__init__(clf)
 
 
@@ -65,7 +64,7 @@ class SupportVectorClassifer(Classifier):
         """
         Bayesian hyperparameter tuning.
         """
-        search = BayesSearchCV(
+        search = GridSearchCV(
             self.clf,
             param_grid,
             scoring=avg_precision,

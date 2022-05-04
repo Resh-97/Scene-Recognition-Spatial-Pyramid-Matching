@@ -4,7 +4,12 @@ import json
 import joblib
 from torch.utils.data import DataLoader
 from sklearn.model_selection import train_test_split
-from utils import create_dataset, show_misclassified, get_percent_misclassified, plot_cm
+from utils import (
+    create_dataset, 
+    show_misclassified, 
+    get_percent_misclassified,
+    plot_cm, 
+    CodeBook)
 from features import run3_SIFT_transforms, get_bovw
 from classifiers import SupportVectorClassifer
 
@@ -22,7 +27,7 @@ if __name__ == "__main__":
     stats['seed'] = seed
     ##----------------------------------- READ DATASETS ----------------------------------------##
     feature_name = 'dense_sift'
-    feature_hparams = {'step_size':1}
+    feature_hparams = {'step_size':3}
 
     transform = run3_SIFT_transforms(**feature_hparams)
     dataset = create_dataset("./training/", transform, labeled=True)
@@ -35,11 +40,29 @@ if __name__ == "__main__":
     X, y, paths, path_class_idxs = next(iter(dataloader))
     X=X.numpy()
     y=y.numpy()
+
+    ##------------------------------------ SPLIT DATASETS ---------------------------------------##
+    # let's split up the labeled training data into validation and testing
+    X_train, X_val, y_train, y_val, paths_train, paths_val = train_test_split(X,y, paths, test_size=0.2, stratify=y)
+    print(np.unique(y_train, return_counts=True))
+    print(np.unique(y_val, return_counts=True))
+    print(X_train.squeeze(1).shape)
+    ##-------------------------------------------------------------------------------------------##
+
+    ##----------------------------------- BATCH FEATURE TRANSFORMS ----------------------------------------##
+    tune_code_book_size = False
+    code_book_cluster_num_candidates = [400]
+    codebook = CodeBook()
+    codebook.create_code_book(X_train.squeeze(1), tune_code_book_size, code_book_cluster_num_candidates)
+    quantised_train_features = codebook.get_quantised_image_features(X_train.squeeze(1))
+    quantised_val_features = codebook.get_quantised_image_features(X_val.squeeze(1))
     
+    print("Quantisation done..")
+    stats['bag_of_words'] = {'codebook_size':400}
     # bag of visual words
-    num_clusters=700
+    """ num_clusters=700
     X = get_bovw(X, num_clusters=num_clusters)
-    stats['bovw'] = {'num_clusters':num_clusters}
+    stats['bovw'] = {'num_clusters':num_clusters}"""
     # load in test data
     #test_dataset = create_dataset("./testing/", transform, labeled=True)
     #test_dataloader = DataLoader(test_dataset, batch_size=len(test_dataset), shuffle=True)
@@ -51,35 +74,30 @@ if __name__ == "__main__":
     ##-------------------------------------------------------------------------------------------##
 
     ##------------------------------------ SAVE BOVW DATASET ------------------------------------##
+    """
     with open('X_bovw.npy', 'wb') as f:
         np.save(f, X)
     with open('labels.npy') as f:
         np.save(f, y)
-    ##-------------------------------------------------------------------------------------------##
-
-    ##------------------------------------ SPLIT DATASETS ---------------------------------------##
-    # let's split up the labeled training data into validation and testing
-    X_train, X_val, y_train, y_val, paths_train, paths_val = train_test_split(X,y, paths, test_size=0.2, stratify=y)
-    print(np.unique(y_train, return_counts=True))
-    print(np.unique(y_val, return_counts=True))
+    """
     ##-------------------------------------------------------------------------------------------##
 
 
     ##------------------------------------- TUNE CLASSIFIER -------------------------------------##
     #params = config['params'] # READ FROM CONFIG FILE
     classifier_name = 'SVC'
-    classifier_hparams = {'C':[1e-2, 1e-1, 1, 500, 1e2, 1e3]}
+    classifier_hparams = {'C':1, 'random_state':seed}
     # params for instantiating classifier
     # parameter grid to search over when tuning classifier
-    param_grid = {
-        'C':[1e-2, 1e-1, 1, 50, 1e2, 500, 750, 1e3], 
-        'kernel': ['linear', 'poly', 'rbf', 'sigmoid'],
-        'gamma':['scale', 'auto'],
-        'random_state':seed
-    }
+    param_grid = [
+        {'C':[2**i for i in range(-5, 15)]}, 
+        {'kernel': ['linear', 'poly', 'rbf', 'sigmoid']},
+        {'gamma':['scale', 'auto']},
+        {'random_state':[seed]}
+    ]
     classifier = SupportVectorClassifer(**classifier_hparams)
     best_score, best_params = classifier.tune(
-        X_train,
+        quantised_train_features,
         y_train, 
         param_grid=param_grid
         ) # tunes classifier and writes to metrics file
@@ -88,7 +106,7 @@ if __name__ == "__main__":
 
     # add classifier to stats dictionary
     stats['classifier'] = {'name':classifier_name, 'hparams':best_params}
-    stats['val_accuracy'] = classifier.clf.score(X_val, y_val)
+    stats['val_accuracy'] = classifier.clf.score(quantised_val_features, y_val)
 
 
 
