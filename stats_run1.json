@@ -1,0 +1,34 @@
+{
+    "seed": 10,
+    "feature": {
+        "name": "tiny_image",
+        "hparams": {
+            "crop": 200
+        }
+    },
+    "classifier": {
+        "name": "KNN",
+        "hparams": {
+            "n_jobs": -1,
+            "n_neighbors": 8
+        }
+    },
+    "val_accuracy": 0.19666666666666666,
+    "percent_misclassified": {
+        "Coast": 0.4,
+        "Forest": 0.95,
+        "Highway": 0.2,
+        "Insidecity": 1.0,
+        "Mountain": 0.85,
+        "Office": 0.8,
+        "OpenCountry": 0.7,
+        "Street": 0.55,
+        "Suburb": 0.85,
+        "TallBuilding": 0.8,
+        "bedroom": 0.95,
+        "industrial": 1.0,
+        "kitchen": 1.0,
+        "livingroom": 1.0,
+        "store": 1.0
+    }
+}
