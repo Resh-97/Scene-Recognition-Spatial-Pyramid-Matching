@@ -1,1 +1,1 @@
-# CVcoursework
+# Coursework for Computer Vision module
