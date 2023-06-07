@@ -7,3 +7,5 @@ pixels.
 
 Finally, we show that a multi-class logistic regression classifier coupled with features extracted by spatial pyramid matching outperforms each of the aforementioned
 methods. 
+
+More Details can be found in our <a href="comp6223_CW3.pdf">Report</a>.
